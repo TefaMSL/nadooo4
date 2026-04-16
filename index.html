@@ -234,8 +234,36 @@
             z-index: 105;
         }
 
-        @media (max-width: 480px) {
-            .card { padding: 1.5rem; }
+        @media (max-width: 600px) {
+            .card { 
+                padding: 1.5rem; 
+                min-height: auto; 
+                width: 95%; 
+                margin: 20px auto; 
+            }
+            .img-container { 
+                min-height: 300px; 
+            }
+            h1 { 
+                font-size: 1.5rem; 
+                margin-bottom: 30px; 
+            }
+            .btn { 
+                padding: 12px 25px; 
+                font-size: 1rem; 
+            }
+            #btn-wrapper { 
+                gap: 15px; 
+            }
+            #flower-text { 
+                font-size: 1.4rem; 
+                bottom: 8vh; 
+            }
+            .close-flower { 
+                top: 15px; 
+                right: 15px; 
+                font-size: 0.8rem; 
+            }
         }
     </style>
 </head>

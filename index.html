@@ -17,15 +17,17 @@
             padding: 0; box-sizing: border-box;
         }
 
-        body {
+        body, html {
             min-height: 100vh;
+            width: 100%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
             background: radial-gradient(circle at center, #2e102e 0%, #0f0a1a 100%);
             font-family: 'Outfit', sans-serif;
             overflow: hidden;
-            position: relative;
+            position: fixed; /* Lock body for smooth animation */
         }
 
         /* Floating Hearts Background */
@@ -190,13 +192,15 @@
         #flower-overlay {
             position: fixed;
             top: 0; left: 0;
-            width: 100%; height: 100%;
+            width: 100vw; height: 100vh;
             background: radial-gradient(circle at 50% 100%, #1e0b16 0%, #050508 100%);
             z-index: 100;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+            touch-action: none;
         }
 
         #flower-overlay canvas {
@@ -375,25 +379,31 @@
         giftBtn.addEventListener('click', () => {
             flowerOverlay.style.display = 'flex';
             flowerStartTs = performance.now();
-            resizeFlowerCanvas(); // Init with correct sizes
+            
+            // Set fixed screen dimensions to avoid mobile address-bar jitters
+            fW = window.innerWidth;
+            fH = window.innerHeight;
+            flowerCanvas.width = fW * window.devicePixelRatio;
+            flowerCanvas.height = fH * window.devicePixelRatio;
+            fctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            
+            fCX = fW / 2;
+            fGROUND = fH * 0.85; 
+            
             initFlowerSystem();
             requestAnimationFrame(renderFlowerFull);
         });
 
+        // Use a simple resize that only acts on major changes (like rotation)
         window.addEventListener('resize', () => {
             if (flowerOverlay.style.display === 'flex') {
-                resizeFlowerCanvas();
+                const newW = window.innerWidth;
+                const newH = window.innerHeight;
+                if (Math.abs(newW - fW) > 50 || Math.abs(newH - fH) > 50) {
+                   location.reload(); // Hard reset for perfect dimensions on rotation
+                }
             }
         });
-
-        function resizeFlowerCanvas() {
-            fW = window.innerWidth;
-            fH = window.innerHeight;
-            flowerCanvas.width = fW;
-            flowerCanvas.height = fH;
-            fCX = fW / 2;
-            fGROUND = fH * 0.85; // Place at 85% depth for better view
-        }
 
         function initFlowerSystem() {
             // Setup fireflies (scaled to screen area)

@@ -155,13 +155,83 @@
             transition: left 0.15s ease, top 0.15s ease, transform 0.2s;
         }
 
-        #success-content { display: none; }
+        /* Success screen enhancements */
+        #success-content { display: none; flex-direction: column; align-items: center; }
 
         .celebration {
-            font-size: 1.3rem;
+            font-size: 1.5rem;
             color: #ffb1c1;
             margin-top: 15px;
-            font-style: italic;
+            font-weight: 600;
+            animation: breathingGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes breathingGlow {
+            0%, 100% { transform: scale(1); text-shadow: 0 0 10px var(--primary); opacity: 0.9; }
+            50% { transform: scale(1.08); text-shadow: 0 0 25px var(--primary), 0 0 45px var(--secondary); opacity: 1; }
+        }
+
+        .btn-gift {
+            margin-top: 30px;
+            background: linear-gradient(45deg, #ffd700, #ffa500);
+            color: #000;
+            padding: 15px 45px;
+            font-size: 1.3rem;
+            box-shadow: 0 5px 20px rgba(255, 215, 0, 0.4);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
+        #flower-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 100%, #1e0b16 0%, #050508 100%);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #flower-overlay canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-width: none; /* Removed fixed constraint */
+            filter: drop-shadow(0 0 20px rgba(255, 64, 129, 0.4));
+        }
+
+        .close-flower {
+            position: absolute;
+            top: 30px; right: 30px;
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            z-index: 110;
+            backdrop-filter: blur(5px);
+        }
+
+        #flower-text {
+            position: absolute;
+            bottom: 10vh;
+            font-family: 'Pacifico', cursive;
+            color: #fff;
+            font-size: 1.8rem;
+            text-shadow: 0 0 15px var(--primary);
+            opacity: 0;
+            transition: opacity 2s ease;
+            z-index: 105;
         }
 
         @media (max-width: 480px) {
@@ -193,7 +263,15 @@
             </div>
             <h1>Yay! See you soon! ❤️ Nada</h1>
             <p class="celebration">I was sure you would choose yes</p>
+            <button class="btn btn-gift" id="giftBtn">I have a gift for you</button>
         </div>
+    </div>
+
+    <!-- Flower Animation Overlay -->
+    <div id="flower-overlay">
+        <span class="close-flower" onclick="document.getElementById('flower-overlay').style.display='none'">Close</span>
+        <canvas id="flowerCanvas"></canvas>
+        <div id="flower-text">For You, Nada ❤️</div>
     </div>
 
     <script>
@@ -249,11 +327,262 @@
         yesBtn.addEventListener('click', () => {
             askContent.style.display = 'none';
             successContent.style.display = 'flex';
-            successContent.style.flexDirection = 'column';
-            successContent.style.alignItems = 'center';
             noBtn.style.display = 'none'; // hide runaway button
             createConfetti();
         });
+
+        // Flower Integration Logic (FULL VERSION FROM FOR_YOU_V3 + NEW SPARKLERS)
+        const giftBtn = document.getElementById('giftBtn');
+        const flowerOverlay = document.getElementById('flower-overlay');
+        const flowerCanvas = document.getElementById('flowerCanvas');
+        const fctx = flowerCanvas.getContext('2d');
+        let fW, fH, fCX, fGROUND, fT = 0;
+        let flowerStartTs = 0;
+
+        const fFireflies = [];
+        const fFallingPetals = [];
+        const fSparkles = [];
+        const fFlowersList = []; // Array to hold multiple blooming flowers
+
+        giftBtn.addEventListener('click', () => {
+            flowerOverlay.style.display = 'flex';
+            flowerStartTs = performance.now();
+            resizeFlowerCanvas(); // Init with correct sizes
+            initFlowerSystem();
+            requestAnimationFrame(renderFlowerFull);
+        });
+
+        window.addEventListener('resize', () => {
+            if (flowerOverlay.style.display === 'flex') {
+                resizeFlowerCanvas();
+            }
+        });
+
+        function resizeFlowerCanvas() {
+            fW = window.innerWidth;
+            fH = window.innerHeight;
+            flowerCanvas.width = fW;
+            flowerCanvas.height = fH;
+            fCX = fW / 2;
+            fGROUND = fH * 0.85; // Place at 85% depth for better view
+        }
+
+        function initFlowerSystem() {
+            // Setup fireflies (scaled to screen area)
+            fFireflies.length = 0;
+            const density = (fW * fH) / 10000; 
+            for(let i = 0; i < Math.min(density, 60); i++) {
+                fFireflies.push({
+                    x: Math.random() * fW, y: Math.random() * fH,
+                    radius: Math.random() * 2 + 0.5,
+                    vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6,
+                    life: Math.random() * Math.PI * 2, speed: Math.random() * 0.03 + 0.01,
+                    color: Math.random() > 0.5 ? '#ffeb3b' : '#ff4081'
+                });
+            }
+
+            fFallingPetals.length = 0;
+            for(let i = 0; i < 15; i++) {
+                fFallingPetals.push({
+                    x: Math.random() * fW, y: (Math.random() * -fH),
+                    size: Math.random() * 5 + 4, speed: Math.random() * 1.5 + 0.5,
+                    angle: Math.random() * Math.PI * 2, spin: (Math.random() - 0.5) * 0.05,
+                    drift: (Math.random() - 0.5) * 1.5,
+                    color: Math.random() > 0.4 ? 'rgba(255, 0, 92, 0.6)' : 'rgba(255, 64, 129, 0.5)'
+                });
+            }
+
+            // Start with the main flower
+            fFlowersList.length = 0;
+            fFlowersList.push({
+                x: fCX, y: fGROUND, startT: 0, scale: 1.5,
+                mainC: '#ff005c', altC: '#c5003c', isMain: true
+            });
+        }
+
+        const fTL = {
+            stem: [0.3, 1.8], leaf1: [1.3, 1.9], leaf2: [1.6, 2.2], leaf3: [1.9, 2.5],
+            br1: [2.0, 2.6], br2: [2.3, 2.9],
+            mainP: [2.8, 3.1, 3.4, 3.7], leftP: [3.5, 3.8, 4.1, 4.4], rightP: [3.8, 4.1, 4.4, 4.7],
+            finalText: [5.5, 7.5]
+        };
+
+        function spring(p) { return p <= 0 ? 0 : p >= 1 ? 1 : 1 - Math.pow(2, -9 * p) * Math.cos(p * Math.PI * 3.2); }
+        function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+        function fProg(start, end) { return Math.max(0, Math.min(1, (fT - start) / (end - start))); }
+
+        function createSparkles(x, y, color) {
+            for(let i = 0; i < 10; i++) {
+                fSparkles.push({
+                    x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
+                    life: 1.0, size: Math.random() * 3 + 1, color
+                });
+            }
+        }
+
+        function drawFullFlower(cx, cy, petals, size, swayA, colorMain, colorAlt, flowerId) {
+            fctx.save(); fctx.translate(cx, cy); 
+            
+            // Continuous 360 degree rotation + sway
+            const continuousRotation = fT * 1.5; 
+            fctx.rotate(swayA + continuousRotation);
+            
+            const angles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
+
+            // Trigger sparkles on bloom
+            const totalBloom = petals.reduce((a, b) => a + b, 0) / 4;
+            if (totalBloom > 0.8 && !petals.sparked) {
+                createSparkles(0, 0, colorMain);
+                petals.sparked = true;
+            }
+
+            for (let i = 0; i < 4; i++) {
+                const s = spring(petals[i]) * size;
+                if (s > 0) {
+                    fctx.save(); fctx.rotate(angles[i]); fctx.scale(s, s);
+                    fctx.beginPath(); fctx.ellipse(0, -18, 14, 22, 0, 0, Math.PI * 2);
+                    
+                    const pulse = Math.sin(fT * 3) * 15;
+                    const grad = fctx.createLinearGradient(0, 0, 0, -40);
+                    grad.addColorStop(0, colorMain);
+                    grad.addColorStop(1, colorAlt);
+                    
+                    fctx.shadowColor = colorMain;
+                    fctx.shadowBlur = 10 + pulse;
+                    fctx.fillStyle = grad; fctx.fill(); fctx.restore();
+                }
+            }
+
+            // Center glow
+            const allOpen = Math.min(...petals);
+            if (allOpen > 0.2) {
+                const r = spring(allOpen) * size * 6;
+                fctx.beginPath(); fctx.arc(0, 0, r, 0, Math.PI * 2);
+                const cg = fctx.createRadialGradient(0, 0, 0, 0, 0, r);
+                cg.addColorStop(0, '#5a0020'); cg.addColorStop(1, '#2c000f');
+                fctx.fillStyle = cg; fctx.fill();
+            }
+            fctx.restore();
+        }
+
+        let lastSpawnT = 0;
+
+        function renderFlowerFull(now) {
+            if (flowerOverlay.style.display === 'none') return;
+            fT = (now - flowerStartTs) / 1000;
+            fctx.clearRect(0, 0, fW, fH);
+
+            // Spawn new flowers randomly over time (Optimized for Screen Width)
+            if (fT - lastSpawnT > 2.5 && fFlowersList.length < 12) {
+                const margin = fW * 0.15; // 15% margin on both sides
+                fFlowersList.push({
+                    x: margin + Math.random() * (fW - 2 * margin), // Keep inside screen
+                    y: fGROUND + (Math.random() * 120 - 60),
+                    startT: fT,
+                    scale: Math.random() * 0.4 + 0.5, // slightly smaller random flowers
+                    mainC: Math.random() > 0.5 ? '#ff4d79' : '#ff005c',
+                    altC: '#c5003c',
+                    isMain: false
+                });
+                lastSpawnT = fT;
+            }
+
+            // Draw Fireflies
+            fFireflies.forEach(f => {
+                f.x += f.vx; f.y += f.vy - 0.2; f.life += f.speed;
+                if(f.x < 0) f.x = fW; if(f.x > fW) f.x = 0; if(f.y < 0) f.y = fH;
+                const alpha = (Math.sin(f.life) + 1) / 2 * 0.8;
+                fctx.beginPath(); fctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+                fctx.fillStyle = f.color; fctx.globalAlpha = alpha;
+                fctx.fill(); fctx.globalAlpha = 1;
+            });
+
+            // Iterate and draw random flowers first (background)
+            fFlowersList.filter(f => !f.isMain).forEach(flower => drawFlowerInstance(flower));
+            
+            // Draw Main Flower last (foreground)
+            fFlowersList.filter(f => f.isMain).forEach(flower => drawFlowerInstance(flower));
+
+            function drawFlowerInstance(flower) {
+                const localT = fT - flower.startT;
+                const p = (start, end) => Math.max(0, Math.min(1, (localT - start) / (end - start)));
+                
+                const stemP = easeOut(p(fTL.stem[0], fTL.stem[1]));
+                const swayA = localT > 2.0 ? (Math.sin((localT-2.0)*1.2)*0.04 + Math.cos((localT-2.0)*0.7)*0.02) * stemP : 0;
+                
+                // Set Stem/Branch Styles
+                fctx.strokeStyle = '#2e7d32'; 
+                fctx.lineWidth = 4 * (flower.scale/1.5); 
+                fctx.lineCap = 'round';
+                fctx.shadowColor = 'rgba(76, 175, 80, 0.4)';
+                fctx.shadowBlur = 5;
+
+                // Draw Stem
+                const stemTopY = flower.y - stemP * (320 * (flower.scale/1.5));
+                fctx.save(); fctx.translate(flower.x, flower.y);
+                fctx.beginPath(); fctx.moveTo(0, 0);
+                fctx.bezierCurveTo(Math.sin(swayA*8)*20, -100, Math.sin(swayA*8)*25, -200, Math.sin(swayA*8)*20, -stemP*(320 * (flower.scale/1.5)));
+                fctx.stroke(); fctx.restore();
+
+                // Branches (only for main flower)
+                if (flower.isMain) {
+                    const br1P = p(fTL.br1[0], fTL.br1[1]);
+                    const br2P = p(fTL.br2[0], fTL.br2[1]);
+                    const br1AttachY = flower.y - stemP * 160;
+                    const br2AttachY = flower.y - stemP * 210;
+                    const br1EndX = flower.x - 90, br1EndY = br1AttachY - 65;
+                    const br2EndX = flower.x + 75, br2EndY = br2AttachY - 55;
+
+                    fctx.lineWidth = 2.5; // Slightly thinner for branches
+                    if(br1P > 0) {
+                        fctx.beginPath(); fctx.moveTo(flower.x, br1AttachY);
+                        fctx.lineTo(flower.x + (br1EndX-flower.x)*br1P, br1AttachY + (br1EndY-br1AttachY)*br1P);
+                        fctx.stroke();
+                        if(br1P > 0.8) {
+                            const lP = fTL.leftP.map(s => p(s, s + 0.4));
+                            drawFullFlower(br1EndX, br1EndY, lP, 0.9, swayA*-1.2, flower.mainC, flower.altC);
+                        }
+                    }
+                    if(br2P > 0) {
+                        fctx.beginPath(); fctx.moveTo(flower.x, br2AttachY);
+                        fctx.lineTo(flower.x + (br2EndX-flower.x)*br2P, br2AttachY + (br2EndY-br2AttachY)*br2P);
+                        fctx.stroke();
+                        if(br2P > 0.8) {
+                            const rP = fTL.rightP.map(s => p(s, s + 0.4));
+                            drawFullFlower(br2EndX, br2EndY, rP, 0.8, swayA*1.1, flower.mainC, flower.altC);
+                        }
+                    }
+                }
+
+                // Bloom main head
+                const mainP = fTL.mainP.map(s => p(s, s + 0.4));
+                drawFullFlower(flower.x, stemTopY, mainP, flower.scale, swayA, flower.mainC, flower.altC);
+            }
+
+            // Falling petals
+            fFallingPetals.forEach(p => {
+                p.y += p.speed; p.x += p.drift; p.angle += p.spin;
+                if (p.y > fH) { p.y = -20; p.x = Math.random() * fW; }
+                fctx.save(); fctx.translate(p.x, p.y); fctx.rotate(p.angle);
+                fctx.beginPath(); fctx.ellipse(0, 0, p.size/1.5, p.size, 0, 0, Math.PI*2);
+                fctx.fillStyle = p.color; fctx.fill(); fctx.restore();
+            });
+
+            // Draw Sparkles
+            for(let i = fSparkles.length-1; i >= 0; i--) {
+                const sp = fSparkles[i];
+                sp.x += sp.vx; sp.y += sp.vy; sp.life -= 0.02;
+                if(sp.life <= 0) { fSparkles.splice(i, 1); continue; }
+                fctx.beginPath(); fctx.arc(sp.x, sp.y, sp.size, 0, Math.PI*2);
+                fctx.fillStyle = sp.color; fctx.globalAlpha = sp.life; fctx.fill(); fctx.globalAlpha = 1;
+            }
+
+            // Final Text
+            const ftP = fProg(fTL.finalText[0], fTL.finalText[1]);
+            if(ftP > 0) { document.getElementById('flower-text').style.opacity = ftP; }
+
+            requestAnimationFrame(renderFlowerFull);
+        }
 
         // Background Hearts
         function createHeart() {
@@ -289,6 +618,31 @@
                 }, i * 40);
             }
         }
+
+        // Continuous Falling Hearts for Flower Overlay (Intensified)
+        function rainHearts() {
+            if (flowerOverlay.style.display !== 'flex') return;
+            for(let i = 0; i < 2; i++) { // Spawn 2 at a time
+                const h = document.createElement('div');
+                h.innerHTML = Math.random() > 0.3 ? '❤️' : '💖';
+                h.style.position = 'fixed';
+                h.style.left = Math.random() * 100 + 'vw';
+                h.style.top = '-50px';
+                h.style.color = Math.random() > 0.5 ? '#ff4d79' : '#ffb1c1';
+                h.style.fontSize = Math.random() * 25 + 15 + 'px';
+                h.style.zIndex = '105';
+                h.style.pointerEvents = 'none';
+                h.style.transition = `transform ${Math.random() * 2 + 3}s linear, opacity 3s ease-out`;
+                flowerOverlay.appendChild(h);
+                
+                setTimeout(() => {
+                    h.style.transform = `translateY(${window.innerHeight + 100}px) rotate(${Math.random() * 1080}deg)`;
+                    h.style.opacity = '0';
+                }, 50);
+                setTimeout(() => h.remove(), 4100);
+            }
+        }
+        setInterval(rainHearts, 80);
     </script>
 </body>
 </html>
